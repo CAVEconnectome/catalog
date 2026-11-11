@@ -62,7 +62,7 @@ async def preview_table(
     logger.debug(
         "preview_table", uri=body.uri, format=body.format, datastack=body.datastack
     )
-    require_datastack_permission(user, settings, body.datastack, "view")
+    await require_datastack_permission(user, settings, body.datastack, "view")
 
     try:
         extractor = get_extractor(body.format)
@@ -104,7 +104,7 @@ async def register_table(
         uri=body.uri,
         format=body.format,
     )
-    require_datastack_permission(user, settings, body.datastack, "edit")
+    await require_datastack_permission(user, settings, body.datastack, "edit")
 
     # Duplicate check
     existing = await find_duplicate(
@@ -294,7 +294,7 @@ async def update_annotations(
         )
     assert isinstance(table, Table)
 
-    require_datastack_permission(user, settings, table.datastack, "edit")
+    await require_datastack_permission(user, settings, table.datastack, "edit")
 
     # Column kind validation
     annotations_dicts = [a.model_dump() for a in body.column_annotations]
@@ -390,7 +390,7 @@ async def refresh_metadata(
         )
     assert isinstance(table, Table)
 
-    require_datastack_permission(user, settings, table.datastack, "edit")
+    await require_datastack_permission(user, settings, table.datastack, "edit")
 
     if not table.format:
         raise HTTPException(
@@ -444,7 +444,7 @@ async def list_tables(
     settings: Settings = Depends(get_settings),
 ) -> list[TableResponse]:
     logger.debug("list_tables", datastack=datastack, name=name, format=format)
-    require_datastack_permission(user, settings, datastack, "view")
+    await require_datastack_permission(user, settings, datastack, "view")
 
     now = now_utc()
     stmt = select(Table).where(

@@ -14,7 +14,11 @@ from sqlalchemy import and_, func, nulls_first, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cave_catalog.auth.middleware import AuthUser, require_auth
+from cave_catalog.auth.middleware import (
+    AuthUser,
+    has_datastack_permission,
+    require_auth,
+)
 from cave_catalog.config import Settings, get_settings
 from cave_catalog.db.models import Asset
 from cave_catalog.db.session import get_session
@@ -70,7 +74,7 @@ async def register_asset(
         uri=body.uri,
         fmt=body.format,
     )
-    require_datastack_permission(user, settings, body.datastack, "edit")
+    await require_datastack_permission(user, settings, body.datastack, "edit")
 
     # Duplicate check
     existing = await find_duplicate(
@@ -169,7 +173,7 @@ async def validate_asset(
     report = ValidationReport()
 
     # Auth check
-    if settings.auth.enabled and not user.has_permission(body.datastack, "edit"):
+    if not await has_datastack_permission(user, settings, body.datastack, "edit"):
         report.auth_check = ValidationCheck(
             passed=False,
             message=f"Write permission required on datastack '{body.datastack}'",
@@ -305,7 +309,7 @@ async def list_assets(
     settings: Settings = Depends(get_settings),
 ) -> list[AssetResponse | TableResponse]:
     logger.debug("list_assets", datastack=datastack, name=name, mat_version=mat_version)
-    require_datastack_permission(user, settings, datastack, "view")
+    await require_datastack_permission(user, settings, datastack, "view")
 
     now = now_utc()
     stmt = select(Asset).where(
@@ -367,7 +371,7 @@ async def get_asset_by_id(
 ) -> AssetResponse | TableResponse:
     logger.debug("get_asset", asset_id=str(asset_id))
     asset = await get_asset(session, asset_id)
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
     return asset_to_response(asset)
 
 
@@ -385,7 +389,7 @@ async def delete_asset(
 ) -> None:
     logger.debug("delete_asset", asset_id=str(asset_id))
     asset = await get_asset(session, asset_id, check_expired=False)
-    require_datastack_permission(user, settings, asset.datastack, "edit")
+    await require_datastack_permission(user, settings, asset.datastack, "edit")
 
     await session.delete(asset)
     await session.commit()
@@ -407,7 +411,7 @@ async def update_asset(
 ) -> AssetResponse | TableResponse:
     logger.debug("update_asset", asset_id=str(asset_id))
     asset = await get_asset(session, asset_id)
-    require_datastack_permission(user, settings, asset.datastack, "edit")
+    await require_datastack_permission(user, settings, asset.datastack, "edit")
 
     # Apply only the fields that were explicitly sent
     update_data = body.model_dump(exclude_unset=True)
@@ -434,7 +438,7 @@ async def get_asset_access(
 ) -> AccessResponse:
     logger.debug("get_asset_access", asset_id=str(asset_id))
     asset = await get_asset(session, asset_id)
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
     # Unmanaged assets: passthrough (no credentials)
     if not asset.is_managed:

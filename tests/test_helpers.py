@@ -86,46 +86,79 @@ def test_asset_not_expired_in_future():
 # require_datastack_permission
 # ---------------------------------------------------------------------------
 
+# middle_auth grants permissions on datasets; each datastack maps to one.
+DATASETS = {"ds1": "ds1_dataset", "minnie65": "minnie65_dataset"}
 
-def test_permission_passes_when_auth_disabled():
+
+@pytest.fixture(autouse=True)
+def dataset_lookup(monkeypatch):
+    from cave_catalog.auth.middleware import AuthClient
+
+    lookup = AsyncMock(side_effect=lambda datastack, token: DATASETS.get(datastack))
+    monkeypatch.setattr(AuthClient, "dataset_for_datastack", lookup)
+    return lookup
+
+
+async def test_permission_passes_when_auth_disabled():
     user = _make_user()
     settings = _make_settings(auth_enabled=False)
     # Should not raise
-    require_datastack_permission(user, settings, "any_ds", "edit")
+    await require_datastack_permission(user, settings, "any_ds", "edit")
 
 
-def test_permission_passes_when_user_has_perm():
-    user = _make_user(permissions={"ds1": ["edit"]})
+async def test_permission_passes_when_user_has_perm_on_dataset():
+    user = _make_user(permissions={"ds1_dataset": ["edit"]})
     settings = _make_settings()
-    require_datastack_permission(user, settings, "ds1", "edit")
+    await require_datastack_permission(user, settings, "ds1", "edit")
 
 
-def test_permission_raises_403_on_missing_edit():
+async def test_permission_on_datastack_name_is_not_enough():
     from fastapi import HTTPException
 
-    user = _make_user(permissions={"ds1": ["view"]})
+    user = _make_user(permissions={"ds1": ["edit"]})
     settings = _make_settings()
     with pytest.raises(HTTPException) as exc_info:
-        require_datastack_permission(user, settings, "ds1", "edit")
+        await require_datastack_permission(user, settings, "ds1", "edit")
+    assert exc_info.value.status_code == 403
+
+
+async def test_permission_raises_403_for_unmapped_datastack():
+    from fastapi import HTTPException
+
+    user = _make_user(permissions={"unknown_ds": ["edit"]})
+    settings = _make_settings()
+    with pytest.raises(HTTPException) as exc_info:
+        await require_datastack_permission(user, settings, "unknown_ds", "edit")
+    assert exc_info.value.status_code == 403
+
+
+async def test_permission_raises_403_on_missing_edit():
+    from fastapi import HTTPException
+
+    user = _make_user(permissions={"ds1_dataset": ["view"]})
+    settings = _make_settings()
+    with pytest.raises(HTTPException) as exc_info:
+        await require_datastack_permission(user, settings, "ds1", "edit")
     assert exc_info.value.status_code == 403
     assert "Write permission" in exc_info.value.detail
 
 
-def test_permission_raises_403_on_missing_view():
+async def test_permission_raises_403_on_missing_view():
     from fastapi import HTTPException
 
     user = _make_user(permissions={})
     settings = _make_settings()
     with pytest.raises(HTTPException) as exc_info:
-        require_datastack_permission(user, settings, "ds1", "view")
+        await require_datastack_permission(user, settings, "ds1", "view")
     assert exc_info.value.status_code == 403
     assert "Read permission" in exc_info.value.detail
 
 
-def test_permission_passes_for_admin():
+async def test_permission_passes_for_admin_without_lookup(dataset_lookup):
     user = _make_user(is_admin=True)
     settings = _make_settings()
-    require_datastack_permission(user, settings, "any_ds", "edit")
+    await require_datastack_permission(user, settings, "any_ds", "edit")
+    dataset_lookup.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -133,51 +166,62 @@ def test_permission_passes_for_admin():
 # ---------------------------------------------------------------------------
 
 
-def test_asset_access_passes_when_auth_disabled():
+async def test_asset_access_passes_when_auth_disabled():
     user = _make_user()
     settings = _make_settings(auth_enabled=False)
     asset = _make_asset()
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
 
-def test_asset_access_passes_with_permission_on_datastack():
-    user = _make_user(permissions={"minnie65": ["view"]})
+async def test_asset_access_passes_with_permission_on_datastack_dataset():
+    user = _make_user(permissions={"minnie65_dataset": ["view"]})
     settings = _make_settings()
     asset = _make_asset(datastack="minnie65")
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
 
-def test_asset_access_passes_with_permission_on_access_group():
+async def test_asset_access_passes_with_permission_on_access_group():
     user = _make_user(permissions={"my_group": ["view"]})
     settings = _make_settings()
     asset = _make_asset(datastack="minnie65", access_group="my_group")
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
 
-def test_asset_access_passes_with_group_membership():
+async def test_asset_access_with_access_group_ignores_datastack_permission():
+    from fastapi import HTTPException
+
+    user = _make_user(permissions={"minnie65_dataset": ["view"]})
+    settings = _make_settings()
+    asset = _make_asset(datastack="minnie65", access_group="my_group")
+    with pytest.raises(HTTPException) as exc_info:
+        await require_asset_view_access(user, settings, asset)
+    assert exc_info.value.status_code == 403
+
+
+async def test_asset_access_passes_with_group_membership():
     user = _make_user(groups=["minnie65"])
     settings = _make_settings()
     asset = _make_asset(datastack="minnie65")
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
 
-def test_asset_access_raises_403_when_denied():
+async def test_asset_access_raises_403_when_denied():
     from fastapi import HTTPException
 
     user = _make_user(permissions={}, groups=[])
     settings = _make_settings()
     asset = _make_asset(datastack="minnie65")
     with pytest.raises(HTTPException) as exc_info:
-        require_asset_view_access(user, settings, asset)
+        await require_asset_view_access(user, settings, asset)
     assert exc_info.value.status_code == 403
     assert "Access denied" in exc_info.value.detail
 
 
-def test_asset_access_passes_for_admin():
+async def test_asset_access_passes_for_admin():
     user = _make_user(is_admin=True)
     settings = _make_settings()
     asset = _make_asset(datastack="minnie65")
-    require_asset_view_access(user, settings, asset)
+    await require_asset_view_access(user, settings, asset)
 
 
 # ---------------------------------------------------------------------------

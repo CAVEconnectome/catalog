@@ -28,6 +28,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 
 import httpx
 import structlog
+from cachetools import TTLCache
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -39,6 +40,11 @@ logger = structlog.get_logger()
 security = HTTPBearer(auto_error=False)
 
 TOKEN_COOKIE_NAME = "middle_auth_token"
+
+# middle_auth grants permissions on datasets, and maps each datastack (a table in the
+# "datastack" service namespace) to the dataset that holds its permissions.
+DATASTACK_SERVICE_NAMESPACE = "datastack"
+_dataset_cache: TTLCache[str, str] = TTLCache(maxsize=1024, ttl=300)
 
 
 @dataclass
@@ -135,6 +141,33 @@ class AuthClient:
             raise AuthServiceError(
                 "Failed to contact authentication service", original_error=str(e)
             ) from e
+
+    async def dataset_for_datastack(self, datastack: str, token: str) -> str | None:
+        """The dataset holding *datastack*'s permissions, or None if middle_auth has
+        no mapping for it."""
+        if datastack in _dataset_cache:
+            return _dataset_cache[datastack]
+        try:
+            response = await self.http_client.get(
+                f"/api/v1/service/{DATASTACK_SERVICE_NAMESPACE}"
+                f"/table/{quote(datastack, safe='')}/dataset",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+        except httpx.RequestError as e:
+            logger.error("auth_service_unreachable", error=str(e))
+            raise AuthServiceError(
+                "Failed to contact authentication service", original_error=str(e)
+            ) from e
+        if response.status_code != 200:
+            logger.warning(
+                "dataset_lookup_failed",
+                datastack=datastack,
+                status_code=response.status_code,
+            )
+            return None
+        dataset: str = response.json()
+        _dataset_cache[datastack] = dataset
+        return dataset
 
 
 _auth_client: AuthClient | None = None
@@ -244,6 +277,26 @@ async def get_current_user(
     return user
 
 
+async def has_datastack_permission(
+    user: AuthUser, settings: Settings, datastack: str, permission: str
+) -> bool:
+    """Whether *user* has *permission* on *datastack*, checked against the dataset
+    middle_auth maps the datastack to (as middle_auth_client does for the other CAVE
+    services). A datastack with no mapping grants nothing."""
+    if not settings.auth.enabled or user.is_admin:
+        return True
+    try:
+        dataset = await get_auth_client(settings).dataset_for_datastack(
+            datastack, user.token
+        )
+    except AuthServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service unavailable",
+        ) from e
+    return dataset is not None and user.has_permission(dataset, permission)
+
+
 async def require_auth(
     user: AuthUser | None = Depends(get_current_user),
 ) -> AuthUser:
@@ -265,7 +318,7 @@ def require_permission(
 
     For endpoints where the datastack comes from the request body or a query
     param, inject the user with `Depends(require_auth)` and check manually via
-    user.has_permission(datastack, permission).
+    has_datastack_permission(user, settings, datastack, permission).
     """
 
     async def _dep(
@@ -281,7 +334,7 @@ def require_permission(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Missing path parameter: {resource_param}",
             )
-        if not user.has_permission(resource, permission):
+        if not await has_datastack_permission(user, settings, resource, permission):
             logger.warning(
                 "permission_denied",
                 user_id=user.user_id,

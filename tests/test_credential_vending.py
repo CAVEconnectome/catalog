@@ -273,7 +273,7 @@ async def test_access_auth_enabled_no_permission_returns_403(
     """With auth enabled, a user without datastack view returns 403."""
     import httpx
     from cave_catalog.app import create_app
-    from cave_catalog.auth.middleware import AuthUser, require_auth
+    from cave_catalog.auth.middleware import AuthClient, AuthUser, require_auth
     from cave_catalog.config import get_settings
     from cave_catalog.db.models import Base
     from cave_catalog.db.session import get_session
@@ -325,9 +325,24 @@ async def test_access_auth_enabled_no_permission_returns_403(
         new_id = reg.json()["id"]
 
         # Now switch back to no-perms user
+        # middle_auth maps the datastack to the dataset its permissions are on
+        monkeypatch.setattr(
+            AuthClient,
+            "dataset_for_datastack",
+            AsyncMock(return_value="minnie65_dataset"),
+        )
         app2.dependency_overrides[require_auth] = lambda: no_perms_user
         resp = await c2.post(f"/catalog/api/v1/assets/{new_id}/access")
         assert resp.status_code == 403
+
+        dataset_viewer = AuthUser(
+            user_id=98,
+            email="viewer@test.com",
+            permissions={"minnie65_dataset": ["view"]},
+        )
+        app2.dependency_overrides[require_auth] = lambda: dataset_viewer
+        resp = await c2.post(f"/catalog/api/v1/assets/{new_id}/access")
+        assert resp.status_code == 200
 
     await engine.dispose()
 

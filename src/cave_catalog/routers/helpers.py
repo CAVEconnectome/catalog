@@ -16,7 +16,7 @@ from httpx import AsyncClient
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from cave_catalog.auth.middleware import AuthUser
+from cave_catalog.auth.middleware import AuthUser, has_datastack_permission
 from cave_catalog.config import Settings
 from cave_catalog.db.models import Asset, Table
 from cave_catalog.schemas import AssetResponse, Maturity, Mutability, ValidationReport
@@ -65,16 +65,14 @@ def asset_is_expired(asset: Asset) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def require_datastack_permission(
+async def require_datastack_permission(
     user: AuthUser,
     settings: Settings,
     datastack: str,
     permission: str,
 ) -> None:
     """Raise 403 if auth is enabled and *user* lacks *permission* on *datastack*."""
-    if not settings.auth.enabled:
-        return
-    if user.has_permission(datastack, permission):
+    if await has_datastack_permission(user, settings, datastack, permission):
         return
     label = "Write" if permission == "edit" else "Read"
     raise HTTPException(
@@ -83,7 +81,7 @@ def require_datastack_permission(
     )
 
 
-def require_asset_view_access(
+async def require_asset_view_access(
     user: AuthUser,
     settings: Settings,
     asset: Asset,
@@ -96,9 +94,12 @@ def require_asset_view_access(
     if not settings.auth.enabled:
         return
     required_resource = asset.access_group or asset.datastack
-    if user.has_permission(required_resource, "view") or user.in_group(
-        required_resource
-    ):
+    if user.in_group(required_resource):
+        return
+    if asset.access_group:
+        if user.has_permission(asset.access_group, "view"):
+            return
+    elif await has_datastack_permission(user, settings, asset.datastack, "view"):
         return
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
