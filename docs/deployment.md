@@ -138,20 +138,24 @@ To enable credential vending for a new GCS bucket:
 
 ### Triggering a Release
 
-1. Go to the `cave-catalog` repo → Actions → "Release" workflow
+1. Go to the `catalog` repo → Actions → "publish release" workflow
 2. Click "Run workflow"
 3. Select the version part to bump: `patch`, `minor`, or `major`
 4. Click "Run workflow"
 
 ### What Happens Automatically
 
-1. `bump-my-version` increments the version in `pyproject.toml`
+1. `bump-my-version` increments the version in `pyproject.toml` (and relocks `uv.lock`).
+   The bump starts from whichever is higher, the app version or the `catalog` chart version
+   in `cave-helm-charts`, so if the chart was bumped on its own the app skips ahead to match
 2. A version commit and `v{version}` tag are pushed to `main`
 3. A GitHub Release is created with auto-generated release notes
-4. `cave-helm-charts/charts/catalog/Chart.yaml` is updated with the new version
-5. Cloud Build triggers on the `v*` tag, builds the Docker image, and pushes to:
-   - `gcr.io/$PROJECT/cave-catalog:v{version}`
-   - `docker.io/caveconnectome/cave-catalog:v{version}`
+4. `cave-helm-charts/charts/catalog/Chart.yaml` gets the new version as both `version` and `appVersion`
+5. Cloud Build triggers on the `v*` tag, builds the Docker image (reusing cached layers from
+   `caveconnectome/cave-catalog:buildcache`), and pushes `docker.io/caveconnectome/cave-catalog:v{version}`
+
+The workflow needs the `HELM_CHART_APP_ID` variable and `HELM_CHART_APP_PRIVATE_KEY` secret
+(the `cave-helm-chart-updater` GitHub App) to push to `cave-helm-charts`.
 
 ### Verification
 

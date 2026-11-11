@@ -64,11 +64,10 @@ commit = true
 tag = true
 tag_name = "v{new_version}"
 message = "v{new_version}"
+# uv.lock records the project's own version, so it goes in the version commit too.
+pre_commit_hooks = ["uv lock", "git add uv.lock"]
 
 [[tool.bumpversion.files]]
 filename = "pyproject.toml"
 search = 'version = "{current_version}"'
 replace = 'version = "{new_version}"'
-
-[tool.uv.sources]
-caveclient = { workspace = true }

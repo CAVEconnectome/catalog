@@ -14,6 +14,18 @@ on:
                 type: boolean
                 required: true
                 default: false
+    workflow_call:
+        inputs:
+            part:
+                description: "Semver part to bump (major, minor, patch)"
+                type: string
+                required: false
+                default: "patch"
+            dry-run:
+                description: "Dry run"
+                type: boolean
+                required: false
+                default: false
 
 jobs:
     bump:
@@ -27,6 +39,25 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
+
+            # A short-lived installation token for the cave-helm-chart-updater GitHub App,
+            # limited to cave-helm-charts. The app's settings page has no usable token: it
+            # signs with its private key and exchanges that for this token on every run.
+            - name: Get cave-helm-charts token
+              id: helm-charts-token
+              uses: actions/create-github-app-token@v2
+              with:
+                  app-id: ${{ vars.HELM_CHART_APP_ID }}
+                  private-key: ${{ secrets.HELM_CHART_APP_PRIVATE_KEY }}
+                  owner: CAVEconnectome
+                  repositories: cave-helm-charts
+
+            - name: Checkout cave-helm-charts repo
+              uses: actions/checkout@v4
+              with:
+                  repository: CAVEconnectome/cave-helm-charts
+                  token: ${{ steps.helm-charts-token.outputs.token }}
+                  path: helm-charts
 
             - name: Get tags
               run: git fetch --tags origin
@@ -42,17 +73,46 @@ jobs:
             - name: Install dependencies
               run: uv sync --frozen --dev
 
-            - name: Bump version
-              run: uv run bump-my-version bump ${{ inputs.part }}
-
-            - name: Update uv.lock after version bump
+            # The chart and the app share one version number, but the chart can be bumped on
+            # its own (a template change). Bump from whichever of the two is ahead, so the new
+            # version is past both and the app skips the patch versions the chart already used.
+            - name: Determine bump base version
+              id: base-version
               run: |
-                  uv lock
-                  git add uv.lock
-                  if ! git diff --cached --quiet; then
-                    git commit --amend --no-edit
-                    git tag -f "$(git describe --tags --abbrev=0)"
+                  code_version="$(sed -nE 's/^current_version[[:space:]]*=[[:space:]]*"?([^"[:space:]]+)"?.*$/\1/p' pyproject.toml)"
+                  chart_version="$(sed -nE 's/^version:[[:space:]]*"?([^"[:space:]]+)"?.*$/\1/p' helm-charts/charts/catalog/Chart.yaml | head -n 1)"
+                  code_base_version="${code_version%%-*}"
+                  chart_base_version="${chart_version%%-*}"
+
+                  if [[ ! "$code_base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid code version: $code_version" >&2
+                    exit 1
                   fi
+                  if [[ ! "$chart_base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                    echo "Invalid chart version: $chart_version" >&2
+                    exit 1
+                  fi
+
+                  base_version="$(printf '%s\n' "$code_base_version" "$chart_base_version" | sort -V | tail -n 1)"
+                  echo "Code version: $code_version (base: $code_base_version)"
+                  echo "Chart version: $chart_version (base: $chart_base_version)"
+                  echo "Bump base version: $base_version"
+                  echo "CODE_VERSION=$code_version" >> "$GITHUB_OUTPUT"
+                  echo "BASE_VERSION=$base_version" >> "$GITHUB_OUTPUT"
+
+            # uv.lock is relocked and committed with each bump by bump-my-version's
+            # pre_commit_hooks (pyproject.toml).
+            - name: Bump version
+              run: |
+                  if [[ "${{ steps.base-version.outputs.CODE_VERSION }}" != "${{ steps.base-version.outputs.BASE_VERSION }}" ]]; then
+                    uv run --frozen bump-my-version bump \
+                      --current-version "${{ steps.base-version.outputs.CODE_VERSION }}" \
+                      --new-version "${{ steps.base-version.outputs.BASE_VERSION }}" \
+                      --no-tag
+                  fi
+                  uv run --frozen bump-my-version bump \
+                    --current-version "${{ steps.base-version.outputs.BASE_VERSION }}" \
+                    ${{ inputs.part }}
 
             - name: Get version
               id: get-version
@@ -86,11 +146,21 @@ jobs:
             contents: read
             id-token: write
         steps:
+            # See the bump job.
+            - name: Get cave-helm-charts token
+              id: helm-charts-token
+              uses: actions/create-github-app-token@v2
+              with:
+                  app-id: ${{ vars.HELM_CHART_APP_ID }}
+                  private-key: ${{ secrets.HELM_CHART_APP_PRIVATE_KEY }}
+                  owner: CAVEconnectome
+                  repositories: cave-helm-charts
+
             - name: Checkout cave-helm-charts repo
               uses: actions/checkout@v4
               with:
                   repository: CAVEconnectome/cave-helm-charts
-                  token: ${{ secrets.HELM_CHART_UPDATE_TOKEN }}
+                  token: ${{ steps.helm-charts-token.outputs.token }}
                   path: helm-charts
 
             - name: Update Chart.yaml appVersion
