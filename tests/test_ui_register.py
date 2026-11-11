@@ -32,7 +32,7 @@ def _mock_metadata():
 class TestRegisterPageRenders:
     async def test_register_page_renders(self, client):
         """Register page loads with form elements."""
-        resp = await client.get("/ui/register")
+        resp = await client.get("/catalog/ui/register")
         assert resp.status_code == 200
         assert "Register a Table" in resp.text
         assert "Preview" in resp.text
@@ -46,7 +46,7 @@ class TestRegisterPageRenders:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/table", "format": "delta"}
+            "/catalog/ui/preview", data={"uri": "gs://bucket/table", "format": "delta"}
         )
         assert resp.status_code == 200
         # Should contain annotation inputs
@@ -75,7 +75,7 @@ class TestRegisterSubmit:
         )
 
         resp = await client.post(
-            "/ui/register/submit",
+            "/catalog/ui/register/submit",
             data={
                 "uri": "gs://bucket/table",
                 "format": "delta",
@@ -107,7 +107,7 @@ class TestRegisterSubmit:
         get_settings.cache_clear()
 
         resp = await client.post(
-            "/ui/register/submit",
+            "/catalog/ui/register/submit",
             data={
                 "uri": "gs://bucket/table",
                 "format": "delta",
@@ -128,7 +128,7 @@ class TestRegisterSubmit:
         get_settings.cache_clear()
 
         resp = await client.post(
-            "/ui/register/submit",
+            "/catalog/ui/register/submit",
             data={
                 "uri": "gs://bucket/table",
                 "format": "delta",
@@ -149,7 +149,7 @@ class TestRegisterSubmit:
         get_settings.cache_clear()
 
         resp = await client.post(
-            "/ui/register/submit",
+            "/catalog/ui/register/submit",
             data={"uri": "", "format": "delta", "name": ""},
             cookies={"cave_catalog_datastack": "minnie65_public"},
         )
@@ -174,7 +174,7 @@ class TestRegisterSubmit:
         )
 
         resp = await client.post(
-            "/ui/register/submit",
+            "/catalog/ui/register/submit",
             data={
                 "uri": "gs://bad/path",
                 "format": "delta",

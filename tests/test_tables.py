@@ -103,7 +103,7 @@ async def _register_table(client, monkeypatch, **overrides) -> dict:
     _patch_extraction(monkeypatch)
     _patch_kind_validation(monkeypatch)
     resp = await client.post(
-        "/api/v1/tables/register", json=_table_payload(**overrides)
+        "/catalog/api/v1/tables/register", json=_table_payload(**overrides)
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -162,7 +162,7 @@ def test_merge_orphaned_annotation_dropped():
 async def test_preview_success(client, monkeypatch):
     _patch_extraction(monkeypatch)
 
-    resp = await client.post("/api/v1/tables/preview", json=_preview_payload())
+    resp = await client.post("/catalog/api/v1/tables/preview", json=_preview_payload())
     assert resp.status_code == 200
 
     data = resp.json()
@@ -176,7 +176,7 @@ async def test_preview_unsupported_format(client, monkeypatch):
         lambda fmt: (_ for _ in ()).throw(ValueError(f"No extractor for '{fmt}'")),
     )
     resp = await client.post(
-        "/api/v1/tables/preview", json=_preview_payload(format="lance")
+        "/catalog/api/v1/tables/preview", json=_preview_payload(format="lance")
     )
     assert resp.status_code == 422
 
@@ -188,7 +188,7 @@ async def test_preview_extraction_failure(client, monkeypatch):
         "cave_catalog.routers.tables.get_extractor", lambda fmt: mock_ext
     )
 
-    resp = await client.post("/api/v1/tables/preview", json=_preview_payload())
+    resp = await client.post("/catalog/api/v1/tables/preview", json=_preview_payload())
     assert resp.status_code == 422
     assert "extraction failed" in resp.json()["detail"].lower()
 
@@ -263,7 +263,7 @@ async def test_register_table_duplicate(client, monkeypatch):
     _patch_validation(monkeypatch)
     _patch_extraction(monkeypatch)
     _patch_kind_validation(monkeypatch)
-    resp = await client.post("/api/v1/tables/register", json=_table_payload())
+    resp = await client.post("/catalog/api/v1/tables/register", json=_table_payload())
     assert resp.status_code == 409
 
 
@@ -281,7 +281,7 @@ async def test_register_table_validation_failure(client, monkeypatch):
     )
     _patch_extraction(monkeypatch)
 
-    resp = await client.post("/api/v1/tables/register", json=_table_payload())
+    resp = await client.post("/catalog/api/v1/tables/register", json=_table_payload())
     assert resp.status_code == 422
 
 
@@ -314,7 +314,7 @@ async def test_register_table_link_validation_failure(client, monkeypatch):
             }
         ]
     )
-    resp = await client.post("/api/v1/tables/register", json=payload)
+    resp = await client.post("/catalog/api/v1/tables/register", json=payload)
     assert resp.status_code == 422
     assert "kind validation" in resp.json()["detail"]["message"].lower()
 
@@ -330,7 +330,7 @@ async def test_update_annotations_success(client, monkeypatch):
 
     _patch_kind_validation(monkeypatch)
     resp = await client.patch(
-        f"/api/v1/tables/{table_id}/annotations",
+        f"/catalog/api/v1/tables/{table_id}/annotations",
         json={
             "column_annotations": [
                 {"column_name": "a", "description": "Updated A"},
@@ -352,7 +352,7 @@ async def test_update_annotations_clear(client, monkeypatch):
 
     _patch_kind_validation(monkeypatch)
     resp = await client.patch(
-        f"/api/v1/tables/{table_id}/annotations",
+        f"/catalog/api/v1/tables/{table_id}/annotations",
         json={"column_annotations": []},
     )
     assert resp.status_code == 200
@@ -374,7 +374,7 @@ async def test_update_annotations_on_non_table_returns_400(client, monkeypatch):
         ),
     )
     resp = await client.post(
-        "/api/v1/assets/register",
+        "/catalog/api/v1/assets/register",
         json={
             "datastack": "minnie65_public",
             "name": "image_vol",
@@ -392,7 +392,7 @@ async def test_update_annotations_on_non_table_returns_400(client, monkeypatch):
     asset_id = resp.json()["id"]
 
     resp2 = await client.patch(
-        f"/api/v1/tables/{asset_id}/annotations",
+        f"/catalog/api/v1/tables/{asset_id}/annotations",
         json={"column_annotations": []},
     )
     assert resp2.status_code == 400
@@ -417,7 +417,7 @@ async def test_refresh_metadata_success(client, monkeypatch):
     )
     _patch_extraction(monkeypatch, metadata=new_meta)
 
-    resp = await client.post(f"/api/v1/tables/{table_id}/refresh")
+    resp = await client.post(f"/catalog/api/v1/tables/{table_id}/refresh")
     assert resp.status_code == 200
     data = resp.json()
     assert data["cached_metadata"]["n_rows"] == 200
@@ -434,7 +434,7 @@ async def test_refresh_preserves_annotations(client, monkeypatch):
     table_id = table["id"]
 
     _patch_extraction(monkeypatch)
-    resp = await client.post(f"/api/v1/tables/{table_id}/refresh")
+    resp = await client.post(f"/catalog/api/v1/tables/{table_id}/refresh")
     assert resp.status_code == 200
     data = resp.json()
     assert data["column_annotations"][0]["description"] == "Keep me"
@@ -453,7 +453,7 @@ async def test_refresh_non_table_returns_400(client, monkeypatch):
         ),
     )
     resp = await client.post(
-        "/api/v1/assets/register",
+        "/catalog/api/v1/assets/register",
         json={
             "datastack": "minnie65_public",
             "name": "image_vol2",
@@ -469,7 +469,7 @@ async def test_refresh_non_table_returns_400(client, monkeypatch):
     )
     asset_id = resp.json()["id"]
 
-    resp2 = await client.post(f"/api/v1/tables/{asset_id}/refresh")
+    resp2 = await client.post(f"/catalog/api/v1/tables/{asset_id}/refresh")
     assert resp2.status_code == 400
 
 
@@ -479,7 +479,7 @@ async def test_refresh_non_table_returns_400(client, monkeypatch):
 
 
 async def test_list_tables_empty(client):
-    resp = await client.get("/api/v1/tables/?datastack=minnie65_public")
+    resp = await client.get("/catalog/api/v1/tables/?datastack=minnie65_public")
     assert resp.status_code == 200
     assert resp.json() == []
 
@@ -487,7 +487,7 @@ async def test_list_tables_empty(client):
 async def test_list_tables_returns_tables(client, monkeypatch):
     await _register_table(client, monkeypatch)
 
-    resp = await client.get("/api/v1/tables/?datastack=minnie65_public")
+    resp = await client.get("/catalog/api/v1/tables/?datastack=minnie65_public")
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 1
@@ -498,10 +498,14 @@ async def test_list_tables_returns_tables(client, monkeypatch):
 async def test_list_tables_filters_by_format(client, monkeypatch):
     await _register_table(client, monkeypatch, name="delta_table", format="delta")
 
-    resp = await client.get("/api/v1/tables/?datastack=minnie65_public&format=parquet")
+    resp = await client.get(
+        "/catalog/api/v1/tables/?datastack=minnie65_public&format=parquet"
+    )
     assert resp.json() == []
 
-    resp2 = await client.get("/api/v1/tables/?datastack=minnie65_public&format=delta")
+    resp2 = await client.get(
+        "/catalog/api/v1/tables/?datastack=minnie65_public&format=delta"
+    )
     assert len(resp2.json()) == 1
 
 
@@ -510,7 +514,7 @@ async def test_list_tables_filters_by_source(client, monkeypatch):
     await _register_table(client, monkeypatch, name="t2", source="materialization")
 
     resp = await client.get(
-        "/api/v1/tables/?datastack=minnie65_public&source=materialization"
+        "/catalog/api/v1/tables/?datastack=minnie65_public&source=materialization"
     )
     data = resp.json()
     assert len(data) == 1
@@ -535,7 +539,7 @@ async def test_list_tables_excludes_non_tables(client, monkeypatch):
         ),
     )
     await client.post(
-        "/api/v1/assets/register",
+        "/catalog/api/v1/assets/register",
         json={
             "datastack": "minnie65_public",
             "name": "image_vol",
@@ -550,12 +554,12 @@ async def test_list_tables_excludes_non_tables(client, monkeypatch):
         },
     )
 
-    resp = await client.get("/api/v1/tables/?datastack=minnie65_public")
+    resp = await client.get("/catalog/api/v1/tables/?datastack=minnie65_public")
     data = resp.json()
     assert len(data) == 1
     assert data[0]["name"] == "real_table"
 
 
 async def test_list_tables_requires_datastack(client):
-    resp = await client.get("/api/v1/tables/")
+    resp = await client.get("/catalog/api/v1/tables/")
     assert resp.status_code == 422

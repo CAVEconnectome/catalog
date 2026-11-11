@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from cave_catalog.config import get_settings
+from cave_catalog.config import URL_PREFIX, get_settings
 from cave_catalog.db.session import get_engine
 from cave_catalog.field_registry import resolve_registry
 from cave_catalog.routers import assets, health, tables, ui
@@ -49,6 +49,9 @@ def create_app() -> FastAPI:
         description="Asset registry, discovery, and credential vending for the CAVE stack.",
         version=version("cave-catalog"),
         lifespan=lifespan,
+        docs_url=f"{URL_PREFIX}/docs",
+        redoc_url=f"{URL_PREFIX}/redoc",
+        openapi_url=f"{URL_PREFIX}/openapi.json",
     )
 
     app.add_middleware(
@@ -59,10 +62,10 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    app.include_router(health.router)
-    app.include_router(assets.router)
-    app.include_router(tables.router)
-    app.include_router(ui.router)
+    app.include_router(health.router, prefix=URL_PREFIX)
+    app.include_router(assets.router, prefix=URL_PREFIX)
+    app.include_router(tables.router, prefix=URL_PREFIX)
+    app.include_router(ui.router, prefix=URL_PREFIX)
 
     @app.exception_handler(_RedirectException)
     async def _handle_redirect(
@@ -71,6 +74,10 @@ def create_app() -> FastAPI:
         return RedirectResponse(url=exc.url, status_code=302)
 
     _pkg_dir = Path(__file__).resolve().parent
-    app.mount("/static", StaticFiles(directory=_pkg_dir / "static"), name="static")
+    app.mount(
+        f"{URL_PREFIX}/static",
+        StaticFiles(directory=_pkg_dir / "static"),
+        name="static",
+    )
 
     return app

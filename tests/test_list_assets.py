@@ -50,7 +50,7 @@ def _patch_validation(monkeypatch) -> None:
 async def _register(client, monkeypatch, **overrides) -> dict:
     _patch_validation(monkeypatch)
     resp = await client.post(
-        "/api/v1/assets/register", json=_asset_payload(**overrides)
+        "/catalog/api/v1/assets/register", json=_asset_payload(**overrides)
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -113,7 +113,9 @@ async def _seed_assets(client, monkeypatch):
 
 async def test_list_no_limit_returns_all(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
-    resp = await client.get("/api/v1/assets/", params={"datastack": "minnie65_public"})
+    resp = await client.get(
+        "/catalog/api/v1/assets/", params={"datastack": "minnie65_public"}
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert len(data) == 5
@@ -124,7 +126,7 @@ async def test_list_no_limit_returns_all(client, monkeypatch):
 async def test_list_with_limit(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/", params={"datastack": "minnie65_public", "limit": 2}
+        "/catalog/api/v1/assets/", params={"datastack": "minnie65_public", "limit": 2}
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -135,7 +137,7 @@ async def test_list_with_limit(client, monkeypatch):
 async def test_list_with_limit_and_offset(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={"datastack": "minnie65_public", "limit": 2, "offset": 3},
     )
     assert resp.status_code == 200
@@ -147,7 +149,7 @@ async def test_list_with_limit_and_offset(client, monkeypatch):
 async def test_list_offset_beyond_total(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={"datastack": "minnie65_public", "limit": 10, "offset": 100},
     )
     assert resp.status_code == 200
@@ -164,7 +166,7 @@ async def test_list_offset_beyond_total(client, monkeypatch):
 async def test_name_contains_filter(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={"datastack": "minnie65_public", "name_contains": "synapse"},
     )
     assert resp.status_code == 200
@@ -177,7 +179,7 @@ async def test_name_contains_filter(client, monkeypatch):
 async def test_name_contains_case_insensitive(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={"datastack": "minnie65_public", "name_contains": "SYNAPSE"},
     )
     assert resp.status_code == 200
@@ -188,7 +190,7 @@ async def test_name_contains_case_insensitive(client, monkeypatch):
 async def test_name_contains_combined_with_format(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={
             "datastack": "minnie65_public",
             "name_contains": "synapse",
@@ -209,7 +211,7 @@ async def test_name_contains_combined_with_format(client, monkeypatch):
 async def test_sort_by_name_asc(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={"datastack": "minnie65_public", "sort_by": "name", "sort_order": "asc"},
     )
     assert resp.status_code == 200
@@ -221,7 +223,7 @@ async def test_sort_by_name_asc(client, monkeypatch):
 async def test_sort_by_name_desc(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={
             "datastack": "minnie65_public",
             "sort_by": "name",
@@ -237,7 +239,7 @@ async def test_sort_by_name_desc(client, monkeypatch):
 async def test_sort_by_mat_version_nulls_first(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={
             "datastack": "minnie65_public",
             "sort_by": "mat_version",
@@ -261,7 +263,7 @@ async def test_sort_by_mat_version_nulls_first(client, monkeypatch):
 async def test_sort_invalid_column_falls_back_to_name(client, monkeypatch):
     await _seed_assets(client, monkeypatch)
     resp = await client.get(
-        "/api/v1/assets/",
+        "/catalog/api/v1/assets/",
         params={
             "datastack": "minnie65_public",
             "sort_by": "nonexistent_column",
@@ -285,7 +287,7 @@ async def test_patch_update_maturity(client, monkeypatch):
     assert asset["maturity"] == "stable"
 
     resp = await client.patch(
-        f"/api/v1/assets/{asset_id}", json={"maturity": "deprecated"}
+        f"/catalog/api/v1/assets/{asset_id}", json={"maturity": "deprecated"}
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -299,7 +301,7 @@ async def test_patch_update_access_group(client, monkeypatch):
     asset_id = asset["id"]
 
     resp = await client.patch(
-        f"/api/v1/assets/{asset_id}", json={"access_group": "team-alpha"}
+        f"/catalog/api/v1/assets/{asset_id}", json={"access_group": "team-alpha"}
     )
     assert resp.status_code == 200
     assert resp.json()["access_group"] == "team-alpha"
@@ -311,10 +313,12 @@ async def test_patch_set_access_group_to_null(client, monkeypatch):
 
     # Set it first
     await client.patch(
-        f"/api/v1/assets/{asset_id}", json={"access_group": "team-alpha"}
+        f"/catalog/api/v1/assets/{asset_id}", json={"access_group": "team-alpha"}
     )
     # Clear it
-    resp = await client.patch(f"/api/v1/assets/{asset_id}", json={"access_group": None})
+    resp = await client.patch(
+        f"/catalog/api/v1/assets/{asset_id}", json={"access_group": None}
+    )
     assert resp.status_code == 200
     assert resp.json()["access_group"] is None
 
@@ -324,7 +328,7 @@ async def test_patch_update_expires_at(client, monkeypatch):
     asset_id = asset["id"]
 
     resp = await client.patch(
-        f"/api/v1/assets/{asset_id}",
+        f"/catalog/api/v1/assets/{asset_id}",
         json={"expires_at": "2026-12-31T00:00:00Z"},
     )
     assert resp.status_code == 200
@@ -336,7 +340,7 @@ async def test_patch_multiple_fields(client, monkeypatch):
     asset_id = asset["id"]
 
     resp = await client.patch(
-        f"/api/v1/assets/{asset_id}",
+        f"/catalog/api/v1/assets/{asset_id}",
         json={"maturity": "draft", "access_group": "beta"},
     )
     assert resp.status_code == 200
@@ -349,12 +353,14 @@ async def test_patch_empty_body_no_change(client, monkeypatch):
     asset = await _register(client, monkeypatch, name="test_asset")
     asset_id = asset["id"]
 
-    resp = await client.patch(f"/api/v1/assets/{asset_id}", json={})
+    resp = await client.patch(f"/catalog/api/v1/assets/{asset_id}", json={})
     assert resp.status_code == 200
     assert resp.json()["maturity"] == "stable"
 
 
 async def test_patch_nonexistent_asset_404(client, monkeypatch):
     fake_id = "00000000-0000-0000-0000-000000000000"
-    resp = await client.patch(f"/api/v1/assets/{fake_id}", json={"maturity": "draft"})
+    resp = await client.patch(
+        f"/catalog/api/v1/assets/{fake_id}", json={"maturity": "draft"}
+    )
     assert resp.status_code == 404

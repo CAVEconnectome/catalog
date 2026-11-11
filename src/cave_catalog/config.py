@@ -4,6 +4,10 @@ from functools import lru_cache
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Every route is served under this prefix. The CAVE ingress routes /catalog to the service
+# without stripping it, like the other CAVE services' prefixes (/materialize, /auth, ...).
+URL_PREFIX = "/catalog"
+
 
 class AuthSettings(BaseSettings):
     enabled: bool = Field(default=False, alias="AUTH_ENABLED")

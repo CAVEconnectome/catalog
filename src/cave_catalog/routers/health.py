@@ -1,7 +1,7 @@
 import structlog
 from fastapi import APIRouter, Depends
 
-from cave_catalog.config import Settings, get_settings
+from cave_catalog.config import URL_PREFIX, Settings, get_settings
 
 logger = structlog.get_logger()
 
@@ -10,7 +10,7 @@ router = APIRouter(tags=["health"])
 
 @router.get("/", include_in_schema=False)
 async def root() -> dict:
-    return {"service": "cave-catalog", "docs": "/docs"}
+    return {"service": "cave-catalog", "docs": f"{URL_PREFIX}/docs"}
 
 
 @router.get("/health")

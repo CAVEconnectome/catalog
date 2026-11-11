@@ -2,9 +2,9 @@
 {% block title %}{{ asset.name }} — CAVE Catalog{% endblock %}
 {% block content %}
 <div class="detail-header">
-  <a href="/ui/explore" class="btn-link">← Back to list</a>
+  <a href="{{ URL_PREFIX }}/ui/explore" class="btn-link">← Back to list</a>
   <h1>{{ asset.name }}</h1>
-  <a href="/ui/explore/{{ asset.id }}/edit" class="btn btn-secondary">Edit</a>
+  <a href="{{ URL_PREFIX }}/ui/explore/{{ asset.id }}/edit" class="btn btn-secondary">Edit</a>
 </div>
 
 <!-- Summary card -->

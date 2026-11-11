@@ -9,7 +9,7 @@
     <tr>
       {% for f in fields %}
       <th data-col="{{ f.key }}" class="sortable"
-          hx-get="/ui/fragments/assets"
+          hx-get="{{ URL_PREFIX }}/ui/fragments/assets"
           hx-target="#asset-table-container"
           hx-include="#filter-form"
           hx-vals='{"sort_by": "{{ f.key }}", "sort_order": "{% if sort_by == f.key and sort_order == "asc" %}desc{% else %}asc{% endif %}"}'>
@@ -23,7 +23,7 @@
   </thead>
   <tbody>
     {% for asset in assets %}
-    <tr class="clickable-row" onclick="location.href='/ui/explore/{{ asset.id }}'">
+    <tr class="clickable-row" onclick="location.href='{{ URL_PREFIX }}/ui/explore/{{ asset.id }}'">
       {% for f in fields %}
       <td data-col="{{ f.key }}">
         {% if f.formatter == "badge" %}
@@ -43,7 +43,7 @@
 <div class="pagination">
   {% if offset > 0 %}
   <a href="#" class="btn-page"
-     hx-get="/ui/fragments/assets"
+     hx-get="{{ URL_PREFIX }}/ui/fragments/assets"
      hx-target="#asset-table-container"
      hx-include="#filter-form"
      hx-vals='{"offset": {{ offset - limit }}, "limit": {{ limit }}}'>← Prev</a>
@@ -55,7 +55,7 @@
 
   {% if offset + limit < total %}
   <a href="#" class="btn-page"
-     hx-get="/ui/fragments/assets"
+     hx-get="{{ URL_PREFIX }}/ui/fragments/assets"
      hx-target="#asset-table-container"
      hx-include="#filter-form"
      hx-vals='{"offset": {{ offset + limit }}, "limit": {{ limit }}}'>Next →</a>

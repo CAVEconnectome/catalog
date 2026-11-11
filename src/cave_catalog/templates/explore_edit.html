@@ -2,7 +2,7 @@
 {% block title %}Edit {{ asset.name }} — CAVE Catalog{% endblock %}
 {% block content %}
 <div class="detail-header">
-  <a href="/ui/explore/{{ asset.id }}" class="btn-link">← Back to detail</a>
+  <a href="{{ URL_PREFIX }}/ui/explore/{{ asset.id }}" class="btn-link">← Back to detail</a>
   <h1>Edit: {{ asset.name }}</h1>
 </div>
 
@@ -10,7 +10,7 @@
 <div class="alert alert-error">{{ error }}</div>
 {% endif %}
 
-<form id="edit-form" method="post" action="/ui/explore/{{ asset.id }}/edit">
+<form id="edit-form" method="post" action="{{ URL_PREFIX }}/ui/explore/{{ asset.id }}/edit">
 
   {# ── Mutable fields ── #}
   <div class="detail-card">
@@ -83,7 +83,7 @@
                 {% if col.kind and col.kind.kind == "materialization" %}
                 <div class="kind-variant-fields">
                   <select name="col_kind_target_table_{{ loop.index0 }}" class="kind-target-table"
-                          hx-get="/ui/fragments/linkable-targets"
+                          hx-get="{{ URL_PREFIX }}/ui/fragments/linkable-targets"
                           hx-trigger="focus once"
                           hx-swap="innerHTML">
                     <option value="{{ col.kind.target_table }}" selected>{{ col.kind.target_table }}</option>
@@ -146,7 +146,7 @@
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Save Changes</button>
-    <a href="/ui/explore/{{ asset.id }}" class="btn btn-secondary">Cancel</a>
+    <a href="{{ URL_PREFIX }}/ui/explore/{{ asset.id }}" class="btn btn-secondary">Cancel</a>
   </div>
 </form>
 
@@ -154,7 +154,7 @@
 <template id="mat-fields-template">
   <div class="kind-variant-fields">
     <select class="kind-target-table" name=""
-            hx-get="/ui/fragments/linkable-targets"
+            hx-get="{{ URL_PREFIX }}/ui/fragments/linkable-targets"
             hx-trigger="focus once"
             hx-swap="innerHTML">
       <option value="">-- Select target table --</option>
@@ -233,7 +233,7 @@ function onKindChange(colIndex, kindValue) {
       const selectedOption = this.options[this.selectedIndex];
       const targetType = selectedOption?.dataset?.type || 'table';
       if (targetName) {
-        const url = '/ui/fragments/target-columns?target_name=' +
+        const url = '{{ URL_PREFIX }}/ui/fragments/target-columns?target_name=' +
           encodeURIComponent(targetName) + '&target_type=' + encodeURIComponent(targetType);
         htmx.ajax('GET', url, {target: columnSelect, swap: 'innerHTML'});
       } else {

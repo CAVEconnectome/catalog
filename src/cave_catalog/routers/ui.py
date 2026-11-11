@@ -15,7 +15,7 @@ from cave_catalog.auth.middleware import (
     get_authorize_url,
     get_current_user,
 )
-from cave_catalog.config import Settings, get_settings
+from cave_catalog.config import URL_PREFIX, Settings, get_settings
 from cave_catalog.db.session import get_session
 from cave_catalog.extractors import get_extractor
 from cave_catalog.field_registry import ASSET_FIELDS, get_default_fields
@@ -45,7 +45,7 @@ async def require_ui_auth(
 ) -> AuthUser:
     """If user is authenticated, return the user. Otherwise redirect to login."""
     if user is None:
-        login_url = f"/ui/login?next={request.url.path}"
+        login_url = f"{URL_PREFIX}/ui/login?next={request.url.path}"
         raise _redirect_exception(login_url)
     return user
 
@@ -67,7 +67,7 @@ def _redirect_exception(url: str) -> _RedirectException:
 @router.get("/login")
 async def login(
     request: Request,
-    next: str = "/ui/register",
+    next: str = f"{URL_PREFIX}/ui/register",
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """Redirect to middle_auth OAuth authorize endpoint."""
@@ -80,21 +80,21 @@ async def login(
 @router.get("/callback", name="ui_callback")
 async def callback(
     request: Request,
-    next: str = "/ui/register",
+    next: str = f"{URL_PREFIX}/ui/register",
 ) -> Response:
     """OAuth callback — extract token from query param, set cookie, redirect."""
     token = request.query_params.get(TOKEN_COOKIE_NAME) or request.query_params.get(
         "token"
     )
     if not token:
-        return RedirectResponse(url="/ui/login")
+        return RedirectResponse(url=f"{URL_PREFIX}/ui/login")
     return create_token_cookie_response(redirect_url=next, token=token)
 
 
 @router.get("/logout")
 async def logout() -> RedirectResponse:
     """Clear the auth cookie and redirect to login."""
-    response = RedirectResponse(url="/ui/login", status_code=302)
+    response = RedirectResponse(url=f"{URL_PREFIX}/ui/login", status_code=302)
     response.delete_cookie(key=TOKEN_COOKIE_NAME)
     return response
 
@@ -135,7 +135,7 @@ async def select_datastack(
     settings: Settings = Depends(get_settings),
 ) -> RedirectResponse:
     """Set the selected datastack cookie (called via HTMX from the selector)."""
-    referer = request.headers.get("referer", "/ui/register")
+    referer = request.headers.get("referer", f"{URL_PREFIX}/ui/register")
     response = RedirectResponse(url=referer, status_code=302)
     if datastack and datastack in settings.datastacks:
         response.set_cookie(
@@ -287,7 +287,7 @@ async def _fetch_assets(
         base_url="http://localhost",
     ) as client:
         resp = await client.get(
-            "/api/v1/assets/",
+            f"{URL_PREFIX}/api/v1/assets/",
             params=params,
             headers={"Authorization": f"Bearer {user.token}"},
         )
@@ -434,7 +434,7 @@ async def explore_edit_submit(
 
         # PATCH mutable fields
         resp = await client.patch(
-            f"/api/v1/assets/{asset_id}",
+            f"{URL_PREFIX}/api/v1/assets/{asset_id}",
             json=patch_body,
             headers=headers,
         )
@@ -451,7 +451,7 @@ async def explore_edit_submit(
         # PATCH annotations (tables only)
         if annotations is not None:
             ann_resp = await client.patch(
-                f"/api/v1/tables/{asset_id}/annotations",
+                f"{URL_PREFIX}/api/v1/tables/{asset_id}/annotations",
                 json={"column_annotations": annotations},
                 headers=headers,
             )
@@ -472,7 +472,7 @@ async def explore_edit_submit(
     # Success — redirect to detail page
     from starlette.responses import RedirectResponse
 
-    return RedirectResponse(url=f"/ui/explore/{asset_id}", status_code=303)
+    return RedirectResponse(url=f"{URL_PREFIX}/ui/explore/{asset_id}", status_code=303)
 
 
 async def _fetch_asset(request: Request, asset_id: str, user: AuthUser) -> dict:
@@ -482,7 +482,7 @@ async def _fetch_asset(request: Request, asset_id: str, user: AuthUser) -> dict:
         base_url="http://localhost",
     ) as client:
         resp = await client.get(
-            f"/api/v1/assets/{asset_id}",
+            f"{URL_PREFIX}/api/v1/assets/{asset_id}",
             headers={"Authorization": f"Bearer {user.token}"},
         )
     if resp.status_code == 404:
@@ -721,7 +721,7 @@ async def register_submit(
         base_url="http://localhost",
     ) as client:
         resp = await client.post(
-            "/api/v1/tables/register",
+            f"{URL_PREFIX}/api/v1/tables/register",
             json=payload,
             headers={"Authorization": f"Bearer {user.token}"},
         )

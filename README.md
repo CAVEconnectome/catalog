@@ -27,10 +27,10 @@ just up
 just migrate
 
 # Verify the service is running
-open http://localhost:8000/docs
+open http://localhost:8000/catalog/docs
 ```
 
-The Swagger UI at `http://localhost:8000/docs` shows all available endpoints.
+The Swagger UI at `http://localhost:8000/catalog/docs` shows all available endpoints.
 
 To reset the database (wipes all data):
 

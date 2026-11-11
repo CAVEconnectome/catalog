@@ -50,7 +50,7 @@ def _patch_validation(monkeypatch):
 async def _register(client, monkeypatch, **overrides) -> dict:
     _patch_validation(monkeypatch)
     resp = await client.post(
-        "/api/v1/assets/register", json=_asset_payload(**overrides)
+        "/catalog/api/v1/assets/register", json=_asset_payload(**overrides)
     )
     assert resp.status_code == 201, resp.text
     return resp.json()
@@ -207,7 +207,7 @@ async def test_access_managed_gcs_returns_token(client, monkeypatch):
     )
     _patch_gcs_provider(monkeypatch)
 
-    resp = await client.post(f"/api/v1/assets/{asset['id']}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{asset['id']}/access")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -227,7 +227,7 @@ async def test_access_unmanaged_returns_passthrough(client, monkeypatch):
         uri="gs://publicbucket/path/",
     )
 
-    resp = await client.post(f"/api/v1/assets/{asset['id']}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{asset['id']}/access")
 
     assert resp.status_code == 200
     data = resp.json()
@@ -242,13 +242,13 @@ async def test_access_expired_asset_returns_404(client, monkeypatch):
     past = (datetime.now(UTC) - timedelta(days=1)).isoformat()
     asset = await _register(client, monkeypatch, expires_at=past)
 
-    resp = await client.post(f"/api/v1/assets/{asset['id']}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{asset['id']}/access")
 
     assert resp.status_code == 404
 
 
 async def test_access_missing_asset_returns_404(client, monkeypatch):
-    resp = await client.post(f"/api/v1/assets/{uuid.uuid4()}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{uuid.uuid4()}/access")
 
     assert resp.status_code == 404
 
@@ -262,7 +262,7 @@ async def test_access_auth_disabled_allows_all(client, monkeypatch):
     """AUTH_ENABLED=false (default in tests) → all requests succeed."""
     asset = await _register(client, monkeypatch, is_managed=False)
 
-    resp = await client.post(f"/api/v1/assets/{asset['id']}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{asset['id']}/access")
 
     assert resp.status_code == 200
 
@@ -318,7 +318,7 @@ async def test_access_auth_enabled_no_permission_returns_403(
         app2.dependency_overrides[require_auth] = lambda: admin_user
         _patch_validation(monkeypatch)
         reg = await c2.post(
-            "/api/v1/assets/register",
+            "/catalog/api/v1/assets/register",
             json=_asset_payload(is_managed=False, name="auth_test_asset"),
         )
         assert reg.status_code == 201, reg.text
@@ -326,7 +326,7 @@ async def test_access_auth_enabled_no_permission_returns_403(
 
         # Now switch back to no-perms user
         app2.dependency_overrides[require_auth] = lambda: no_perms_user
-        resp = await c2.post(f"/api/v1/assets/{new_id}/access")
+        resp = await c2.post(f"/catalog/api/v1/assets/{new_id}/access")
         assert resp.status_code == 403
 
     await engine.dispose()
@@ -379,7 +379,7 @@ async def test_access_group_membership_overrides_datastack_permission(
         app2.dependency_overrides[require_auth] = lambda: admin_user
         _patch_validation(monkeypatch)
         reg = await c2.post(
-            "/api/v1/assets/register",
+            "/catalog/api/v1/assets/register",
             json=_asset_payload(access_group="special-group", is_managed=False),
         )
         assert reg.status_code == 201, reg.text
@@ -387,7 +387,7 @@ async def test_access_group_membership_overrides_datastack_permission(
 
         # Now request access as the group member
         app2.dependency_overrides[require_auth] = lambda: group_user
-        resp = await c2.post(f"/api/v1/assets/{new_id}/access")
+        resp = await c2.post(f"/catalog/api/v1/assets/{new_id}/access")
         assert resp.status_code == 200
 
     await engine.dispose()
@@ -406,7 +406,7 @@ async def test_access_unsupported_scheme_returns_422(client, monkeypatch):
         is_managed=True,
     )
 
-    resp = await client.post(f"/api/v1/assets/{asset['id']}/access")
+    resp = await client.post(f"/catalog/api/v1/assets/{asset['id']}/access")
 
     assert resp.status_code == 422
     assert "az" in resp.text

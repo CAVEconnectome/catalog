@@ -56,7 +56,7 @@ class TestCheckNameAPI:
             AsyncMock(return_value=ValidationCheck(passed=True)),
         )
         resp = await client.get(
-            "/api/v1/assets/check-name",
+            "/catalog/api/v1/assets/check-name",
             params={"datastack": "minnie65_public", "name": "new_table"},
         )
         assert resp.status_code == 200
@@ -70,7 +70,7 @@ class TestCheckNameAPI:
             AsyncMock(return_value=ValidationCheck(passed=False, message="reserved")),
         )
         resp = await client.get(
-            "/api/v1/assets/check-name",
+            "/catalog/api/v1/assets/check-name",
             params={"datastack": "minnie65_public", "name": "synapses"},
         )
         assert resp.status_code == 200
@@ -87,7 +87,7 @@ class TestCheckNameAPI:
         )
         # Register an asset first
         await client.post(
-            "/api/v1/assets/register",
+            "/catalog/api/v1/assets/register",
             json=_asset_payload(name="taken_name"),
         )
 
@@ -97,7 +97,7 @@ class TestCheckNameAPI:
             AsyncMock(return_value=ValidationCheck(passed=True)),
         )
         resp = await client.get(
-            "/api/v1/assets/check-name",
+            "/catalog/api/v1/assets/check-name",
             params={
                 "datastack": "minnie65_public",
                 "name": "taken_name",
@@ -121,7 +121,7 @@ class TestCheckNameFragment:
     async def test_empty_name_returns_empty(self, client):
         """Empty name returns empty response."""
         resp = await client.get(
-            "/ui/fragments/check-name",
+            "/catalog/ui/fragments/check-name",
             params={"name": ""},
         )
         assert resp.status_code == 200
@@ -139,7 +139,7 @@ class TestCheckNameFragment:
             AsyncMock(return_value=ValidationCheck(passed=True)),
         )
         resp = await client.get(
-            "/ui/fragments/check-name",
+            "/catalog/ui/fragments/check-name",
             params={"name": "new_table"},
             cookies={"cave_catalog_datastack": "minnie65_public"},
         )
@@ -159,7 +159,7 @@ class TestCheckNameFragment:
             AsyncMock(return_value=ValidationCheck(passed=False, message="reserved")),
         )
         resp = await client.get(
-            "/ui/fragments/check-name",
+            "/catalog/ui/fragments/check-name",
             params={"name": "synapses"},
             cookies={"cave_catalog_datastack": "minnie65_public"},
         )
@@ -215,7 +215,7 @@ class TestCheckNameFormatAPI:
 
     async def test_invalid_format_returns_unavailable(self, client):
         resp = await client.get(
-            "/api/v1/assets/check-name",
+            "/catalog/api/v1/assets/check-name",
             params={"datastack": "minnie65_public", "name": "Bad-Name"},
         )
         assert resp.status_code == 200
@@ -229,7 +229,7 @@ class TestCheckNameFormatAPI:
             AsyncMock(return_value=ValidationCheck(passed=True)),
         )
         resp = await client.get(
-            "/api/v1/assets/check-name",
+            "/catalog/api/v1/assets/check-name",
             params={"datastack": "minnie65_public", "name": "good_name"},
         )
         assert resp.status_code == 200
@@ -246,7 +246,7 @@ class TestCheckNameFormatFragment:
         get_settings.cache_clear()
 
         resp = await client.get(
-            "/ui/fragments/check-name",
+            "/catalog/ui/fragments/check-name",
             params={"name": "Bad-Name"},
             cookies={"cave_catalog_datastack": "minnie65_public"},
         )

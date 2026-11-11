@@ -30,7 +30,7 @@
     <div class="form-group">
       <label for="uri">Cloud Storage URI</label>
       <input type="text" id="uri" name="uri" placeholder="gs://bucket/path/to/table/" required
-             hx-get="/ui/fragments/check-uri"
+             hx-get="{{ URL_PREFIX }}/ui/fragments/check-uri"
              hx-trigger="blur changed"
              hx-target="#uri-check-result"
              hx-include="#uri"
@@ -48,7 +48,7 @@
       </div>
       <div class="form-group" style="flex: 0 0 auto; align-self: flex-end;">
         <button type="button" class="btn btn-secondary"
-                hx-post="/ui/preview"
+                hx-post="{{ URL_PREFIX }}/ui/preview"
                 hx-include="#uri, #format"
                 hx-target="#preview-area"
                 hx-swap="innerHTML"
@@ -75,7 +75,7 @@
       <div class="form-group">
         <label for="table-name">Table Name</label>
         <input type="text" id="table-name" name="name" required
-               hx-get="/ui/fragments/check-name"
+               hx-get="{{ URL_PREFIX }}/ui/fragments/check-name"
                hx-trigger="blur changed"
                hx-target="#name-check-result"
                hx-include="#table-name"
@@ -147,7 +147,7 @@
     <div id="register-result"></div>
     <section class="form-section">
       <button type="button" class="btn btn-primary"
-              hx-post="/ui/register/submit"
+              hx-post="{{ URL_PREFIX }}/ui/register/submit"
               hx-include="#register-form"
               hx-target="#register-result"
               hx-swap="innerHTML"
@@ -164,7 +164,7 @@
 <template id="mat-fields-template">
   <div class="kind-variant-fields">
     <select class="kind-target-table" name=""
-            hx-get="/ui/fragments/linkable-targets"
+            hx-get="{{ URL_PREFIX }}/ui/fragments/linkable-targets"
             hx-trigger="focus once"
             hx-swap="innerHTML">
       <option value="">-- Select target table --</option>
@@ -244,7 +244,7 @@ function onKindChange(colIndex, kindValue) {
       const selectedOption = this.options[this.selectedIndex];
       const targetType = selectedOption?.dataset?.type || 'table';
       if (targetName) {
-        const url = '/ui/fragments/target-columns?target_name=' +
+        const url = '{{ URL_PREFIX }}/ui/fragments/target-columns?target_name=' +
           encodeURIComponent(targetName) + '&target_type=' + encodeURIComponent(targetType);
         htmx.ajax('GET', url, {target: columnSelect, swap: 'innerHTML'});
       } else {

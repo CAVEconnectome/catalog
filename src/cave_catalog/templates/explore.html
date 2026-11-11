@@ -10,13 +10,13 @@
 
 <!-- Filter bar -->
 <div class="filter-bar">
-  <form id="filter-form" hx-get="/ui/fragments/assets" hx-target="#asset-table-container" hx-push-url="false">
+  <form id="filter-form" hx-get="{{ URL_PREFIX }}/ui/fragments/assets" hx-target="#asset-table-container" hx-push-url="false">
     {% for f in get_filterable_fields() %}
       {% if f.default %}
       <div class="filter-item">
         <label for="filter-{{ f.key }}">{{ f.label }}:</label>
         {% if f.filter_type == "enum" %}
-        <select id="filter-{{ f.key }}" name="{{ f.key }}" hx-get="/ui/fragments/assets" hx-target="#asset-table-container" hx-include="#filter-form">
+        <select id="filter-{{ f.key }}" name="{{ f.key }}" hx-get="{{ URL_PREFIX }}/ui/fragments/assets" hx-target="#asset-table-container" hx-include="#filter-form">
           <option value="">All</option>
           {% for v in f.enum_values %}
           <option value="{{ v }}" {% if filters.get(f.key) == v %}selected{% endif %}>{{ v }}</option>
@@ -26,14 +26,14 @@
         <input type="text" id="filter-{{ f.key }}" name="{{ f.key }}"
                value="{{ filters.get(f.key, '') }}"
                placeholder="Search..."
-               hx-get="/ui/fragments/assets" hx-target="#asset-table-container"
+               hx-get="{{ URL_PREFIX }}/ui/fragments/assets" hx-target="#asset-table-container"
                hx-trigger="input changed delay:300ms"
                hx-include="#filter-form">
         {% elif f.filter_type == "exact" %}
         <input type="number" id="filter-{{ f.key }}" name="{{ f.key }}"
                value="{{ filters.get(f.key, '') }}"
                placeholder="{{ f.label }}"
-               hx-get="/ui/fragments/assets" hx-target="#asset-table-container"
+               hx-get="{{ URL_PREFIX }}/ui/fragments/assets" hx-target="#asset-table-container"
                hx-trigger="input changed delay:300ms"
                hx-include="#filter-form">
         {% endif %}

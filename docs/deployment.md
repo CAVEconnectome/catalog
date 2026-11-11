@@ -109,7 +109,9 @@ helmfile apply
 
 ## AFIS Integration
 
-After deploying the catalog, add `catalog_url` to the datastack configuration in AFIS. This is optional — if not set, CAVEclient will use the `local_server` URL (which routes to `/catalog` via ingress).
+After deploying the catalog, add `catalog_url` to the datastack configuration in AFIS. This is optional — if not set, CAVEclient uses `{local_server}/catalog`, where the ingress routes to the service.
+
+`catalog_url` includes the `/catalog` prefix the service is served under (e.g. `https://minnie.microns-daf.com/catalog`); CAVEclient appends `/api/v1/...` to it.
 
 To set an explicit catalog URL:
 1. Update the DataStack record in AFIS to include `catalog_url`

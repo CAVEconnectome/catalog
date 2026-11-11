@@ -12,13 +12,15 @@ class TestPreviewRoute:
     """Tests for POST /ui/preview."""
 
     async def test_empty_uri_returns_error(self, client):
-        resp = await client.post("/ui/preview", data={"uri": "", "format": "delta"})
+        resp = await client.post(
+            "/catalog/ui/preview", data={"uri": "", "format": "delta"}
+        )
         assert resp.status_code == 200
         assert "Please enter a URI" in resp.text
 
     async def test_unsupported_format(self, client):
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/path", "format": "csv"}
+            "/catalog/ui/preview", data={"uri": "gs://bucket/path", "format": "csv"}
         )
         assert resp.status_code == 200
         assert "Unsupported format" in resp.text
@@ -34,7 +36,8 @@ class TestPreviewRoute:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/missing", "format": "delta"}
+            "/catalog/ui/preview",
+            data={"uri": "gs://bucket/missing", "format": "delta"},
         )
         assert resp.status_code == 200
         assert "URI unreachable" in resp.text
@@ -50,7 +53,7 @@ class TestPreviewRoute:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://secret/data", "format": "delta"}
+            "/catalog/ui/preview", data={"uri": "gs://secret/data", "format": "delta"}
         )
         assert resp.status_code == 200
         assert "URI unreachable" in resp.text or "permission" in resp.text.lower()
@@ -63,7 +66,7 @@ class TestPreviewRoute:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/bad", "format": "delta"}
+            "/catalog/ui/preview", data={"uri": "gs://bucket/bad", "format": "delta"}
         )
         assert resp.status_code == 200
         assert "Failed to read delta data" in resp.text
@@ -87,7 +90,7 @@ class TestPreviewRoute:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/table", "format": "delta"}
+            "/catalog/ui/preview", data={"uri": "gs://bucket/table", "format": "delta"}
         )
         assert resp.status_code == 200
         assert "DELTA" in resp.text
@@ -112,7 +115,8 @@ class TestPreviewRoute:
             "cave_catalog.routers.ui.get_extractor", lambda fmt: mock_extractor
         )
         resp = await client.post(
-            "/ui/preview", data={"uri": "gs://bucket/file.parquet", "format": "parquet"}
+            "/catalog/ui/preview",
+            data={"uri": "gs://bucket/file.parquet", "format": "parquet"},
         )
         assert resp.status_code == 200
         assert "PARQUET" in resp.text
