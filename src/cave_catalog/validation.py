@@ -16,7 +16,7 @@ from typing import Any
 
 import structlog
 from cloudpathlib import AnyPath, CloudPath
-from httpx import AsyncClient
+from httpx import AsyncClient, HTTPError
 
 from cave_catalog.config import get_settings
 from cave_catalog.schemas import ValidationCheck, ValidationReport
@@ -145,6 +145,25 @@ async def check_format_sniff(uri: str, fmt: str | None) -> ValidationCheck:
     return await sniffer(uri)
 
 
+async def _mat_views(
+    base: str, datastack: str, mat_version: int, client: AsyncClient, headers: dict
+) -> set[str]:
+    """The version's view names from ME's ``/views`` (empty if it can't be read)."""
+    url = f"{base}/api/v2/datastack/{datastack}/version/{mat_version}/views"
+    try:
+        response = await client.get(url, headers=headers, timeout=15.0)
+        if response.status_code != 200:
+            logger.debug("mat_views_unavailable", status=response.status_code)
+            return set()
+        body = response.json()
+    except (HTTPError, ValueError) as exc:  # unreachable, or a body that is not JSON
+        logger.debug("mat_views_unavailable", error=str(exc))
+        return set()
+    if isinstance(body, dict):
+        return set(body)
+    return {v["table_name"] if isinstance(v, dict) else v for v in body or []}
+
+
 async def check_mat_table(
     datastack: str,
     source_table: str,
@@ -152,7 +171,12 @@ async def check_mat_table(
     client: AsyncClient,
     token: str = "",
 ) -> ValidationCheck:
-    """Verify a materialization table + version exist via the MaterializationEngine API."""
+    """Verify a materialization table or view + version exist via the MaterializationEngine API.
+
+    The version's tables come from ME's ``/tables``, which lists tables only; a name not
+    there is looked up in the version's ``/views`` (a dict keyed by view name), so a lake
+    built from a view (e.g. connections_with_nuclei) can be registered too.
+    """
     logger.debug(
         "check_mat_table",
         datastack=datastack,
@@ -192,9 +216,13 @@ async def check_mat_table(
         mat_tables: list[str] = response.json()
         if source_table in mat_tables:
             return ValidationCheck(passed=True)
+        if source_table in await _mat_views(
+            base, datastack, mat_version, client, headers
+        ):
+            return ValidationCheck(passed=True)
         return ValidationCheck(
             passed=False,
-            message=f"Mat table '{source_table}' at version {mat_version} not found in MaterializationEngine",
+            message=f"Mat table or view '{source_table}' at version {mat_version} not found in MaterializationEngine",
         )
     except Exception as exc:
         return ValidationCheck(
