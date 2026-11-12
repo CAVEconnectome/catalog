@@ -1,5 +1,45 @@
 # CLAUDE.md
 
+## Running the tests locally
+
+The suite is self-contained: it needs no Docker, no Postgres and no other CAVE service.
+`tests/conftest.py` sets `AUTH_ENABLED=false` and gives each test its own temporary SQLite
+database, with the tables made by `create_all`; the calls out to middle_auth,
+MaterializationEngine and Cloud Storage are mocked.
+
+```bash
+uv run pytest -q -p no:cacheprovider
+```
+
+Expected: everything passes (322 tests as of v0.1.3). `just test` is the same command;
+`just` is optional, and the justfile shows what each recipe runs.
+
+Before a PR, also run the type check and the linter (`just checks` runs all three):
+
+```bash
+uv run mypy src/
+uv run ruff format src/ tests/ && uv run ruff check src/ tests/ --fix
+```
+
+- **SQLite isn't Postgres.** The tests build the schema from the SQLAlchemy models
+  (`create_all`), not from the Alembic migrations, so they won't catch a migration that has
+  drifted from `db/models.py` (for example a partial unique index or a NOT NULL that exists
+  in one and not the other). After changing a model or a migration, run the migrations
+  against a real Postgres too:
+
+  ```bash
+  docker compose up postgres -d
+  DATABASE_URL=postgresql+asyncpg://cave_catalog:cave_catalog@localhost:5432/cave_catalog \
+    uv run alembic upgrade head
+  ```
+
+- **Running the service** (to try it from a client): `just dev` starts Postgres in Docker and
+  uvicorn on the host at `http://localhost:8000/catalog/docs`, with auth off. Apply the
+  migrations first, as above. With `MAT_ENGINE_URL` unset, registration skips the
+  MaterializationEngine checks (name reservation and table verification).
+- **Port 5432:** compose's Postgres publishes 5432, so stop any other Postgres container on
+  that port first (MaterializationEngine's `mat-test-pg` uses it too).
+
 ## Releasing a new version
 
 Every new version needs two things, and they must stay in sync:
