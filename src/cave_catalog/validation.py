@@ -148,8 +148,11 @@ async def check_format_sniff(uri: str, fmt: str | None) -> ValidationCheck:
 async def _mat_views(
     base: str, datastack: str, mat_version: int, client: AsyncClient, headers: dict
 ) -> set[str]:
-    """The version's view names from ME's ``/views`` (empty if it can't be read)."""
-    url = f"{base}/api/v2/datastack/{datastack}/version/{mat_version}/views"
+    """The version's view names from ME's ``/views`` (empty if it can't be read).
+
+    ME serves a version's views under its v3 API only; there is no v2 ``/views``.
+    """
+    url = f"{base}/api/v3/datastack/{datastack}/version/{mat_version}/views"
     try:
         response = await client.get(url, headers=headers, timeout=15.0)
         if response.status_code != 200:
@@ -173,8 +176,8 @@ async def check_mat_table(
 ) -> ValidationCheck:
     """Verify a materialization table or view + version exist via the MaterializationEngine API.
 
-    The version's tables come from ME's ``/tables``, which lists tables only; a name not
-    there is looked up in the version's ``/views`` (a dict keyed by view name), so a lake
+    The version's tables come from ME's v2 ``/tables``, which lists tables only; a name not
+    there is looked up in the version's v3 ``/views`` (a dict keyed by view name), so a lake
     built from a view (e.g. connections_with_nuclei) can be registered too.
     """
     logger.debug(

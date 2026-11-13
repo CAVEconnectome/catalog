@@ -15,15 +15,21 @@ VIEWS = {
 }
 
 
+# The routes ME really has: a version's tables under its v2 API, its views under v3 only
+# (asking v2 for views is a 404, as it was on ltv7 when the check asked there).
+TABLES_PATH = "/materialize/api/v2/datastack/minnie65_phase3_v1/version/1926/tables"
+VIEWS_PATH = "/materialize/api/v3/datastack/minnie65_phase3_v1/version/1926/views"
+
+
 def _transport(tables=TABLES, views=VIEWS, tables_status=200, views_status=200):
     """ME's /tables and /views for one version; records the paths asked for."""
     seen: list[str] = []
 
     async def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request.url.path)
-        if request.url.path.endswith("/tables"):
+        if request.url.path == TABLES_PATH:
             return httpx.Response(tables_status, json=tables)
-        if request.url.path.endswith("/views"):
+        if request.url.path == VIEWS_PATH:
             return httpx.Response(views_status, json=views)
         return httpx.Response(404)
 
@@ -50,18 +56,13 @@ async def _check(name, transport):
 async def test_a_table_passes_without_asking_for_views():
     transport, seen = _transport()
     assert (await _check("synapses_pni_2", transport)).passed is True
-    assert seen == [
-        "/materialize/api/v2/datastack/minnie65_phase3_v1/version/1926/tables"
-    ]
+    assert seen == [TABLES_PATH]
 
 
 async def test_a_view_passes():
     transport, seen = _transport()
     assert (await _check("connections_with_nuclei", transport)).passed is True
-    assert (
-        seen[-1]
-        == "/materialize/api/v2/datastack/minnie65_phase3_v1/version/1926/views"
-    )
+    assert seen[-1] == VIEWS_PATH
 
 
 async def test_views_listed_as_records_are_understood_too():
